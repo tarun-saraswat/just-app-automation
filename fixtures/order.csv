@@ -1,0 +1,9 @@
+field,required
+order_identifier,true
+date,true
+status,true
+item_details,true
+total,true
+delivery_address_summary,true
+payment_summary,true
+

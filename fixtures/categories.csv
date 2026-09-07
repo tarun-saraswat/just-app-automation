@@ -1,0 +1,25 @@
+row_type,section,category,icon_hash
+section,Grocery & Kitchen,,
+category,Grocery & Kitchen,"Dairy, Bread And Eggs",f0c89898d4d8f8f8
+category,Grocery & Kitchen,"Atta, Rice And Dals",f0e0f2fce2c4faf8
+category,Grocery & Kitchen,Edible Oils And Ghee,f0f8b8f0f4ecf8f8
+category,Grocery & Kitchen,"Salt, Sugar And Jaggery",f090f2ccc0c0d8f8
+category,Grocery & Kitchen,Cereals And Breakfast,70f8d8e8f4c8c8f8
+category,Grocery & Kitchen,"Masalas, Pickles And Papads",f0f0f0e8c0d0f4f8
+category,Grocery & Kitchen,Dry Fruits And Nuts,f0e0e0e8f4ecdcf8
+section,Snacks & Drinks,,
+category,Snacks & Drinks,Chips And Namkeens,f0b0b2d4d8f4faf8
+category,Snacks & Drinks,Biscuits And Cakes,f0e0acf4d0e2f2f8
+category,Snacks & Drinks,Chocolates And Sweets,70f8e870f8f0f8f8
+category,Snacks & Drinks,"Tea, Coffee And More",f0e0e4ecf8d8f4f8
+category,Snacks & Drinks,Cold Drinks And Juices,70e8e8f8f8f8f8f8
+category,Snacks & Drinks,Instant Food And Frozen Food,70e0e2f6d8e4fcf8
+category,Snacks & Drinks,Sauces And Spreads,70e0e0f8f0c0f4f8
+section,Personal care,,
+category,Personal care,Bath Body And Hair,f0e8e0e0e0e4e4f8
+category,Personal care,Oral care,f0f0f0e0e8e0e0f8
+category,Personal care,Hygiene And Wellness,f0f0f0f4bcc0f2f8
+category,Personal care,Perfumes And Body Sprays,f0c8c4c8c8cccef8
+section,Household Essentials,,
+category,Household Essentials,Cleaning Essentials,f0d8d8ecc8d8f8f8
+category,Household Essentials,Home And Kitchen Essentials,f0c0c4c8d8d8e8f8

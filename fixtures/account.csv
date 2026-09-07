@@ -1,0 +1,7 @@
+field,expected_non_sensitive_value
+page_heading,Account
+guest_message,"Login to track your savings, orders & addresses"
+login_button,Log in with phone number
+consent,"By clicking, I accept the terms of service & privacy policy"
+login_form_heading,Enter your mobile number
+login_form_subtitle,to login/signup

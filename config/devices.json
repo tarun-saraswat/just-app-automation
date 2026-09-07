@@ -1,0 +1,5 @@
+[
+  { "name": "Galaxy S26 Ultra", "version": "16", "generation": "new" },
+  { "name": "Galaxy S23 Ultra", "version": "13", "generation": "mid" },
+  { "name": "Galaxy S10", "version": "11", "generation": "oldest_available" }
+]

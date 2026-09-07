@@ -1,0 +1,39 @@
+{
+  "name": "just-production-read-only-sanity",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Production-safe Just Android sanity suite for LambdaTest Real Device Cloud",
+  "scripts": {
+    "preflight": "node scripts/preflight.js",
+    "upload:apk": "node scripts/upload-apk.js",
+    "test:cloud": "node scripts/run-matrix.js",
+    "test:cloud:one": "wdio run wdio.conf.js",
+    "test:cloud:guest:one": "wdio run wdio.guest.cloud.conf.js",
+    "test:local": "wdio run wdio.local.conf.js",
+    "test:local:guest": "wdio run wdio.guest.local.conf.js",
+    "report:allure": "node scripts/generate-allure-report.js",
+    "debug:login:inspect": "node scripts/local-login-debug.js inspect",
+    "test:offline": "node --test test/unit/*.test.js",
+    "lint": "eslint .",
+    "verify": "npm run test:offline && npm run lint"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@wdio/allure-reporter": "^9.31.4",
+    "@wdio/appium-service": "^9.31.6",
+    "@wdio/cli": "^9.19.2",
+    "@wdio/local-runner": "^9.19.2",
+    "@wdio/mocha-framework": "^9.19.2",
+    "@wdio/spec-reporter": "^9.19.2",
+    "allure-commandline": "^2.43.0",
+    "appium": "^3.7.0",
+    "eslint": "^9.35.0",
+    "globals": "^16.3.0",
+    "pngjs": "^7.0.0",
+    "webdriverio": "^9.19.2"
+  }
+}

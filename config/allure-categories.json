@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Element not found",
+    "matchedStatuses": ["failed", "broken"],
+    "traceRegex": ".*(NoSuchElement|element.*not.*found).*"
+  },
+  {
+    "name": "Timeout / wait failure",
+    "matchedStatuses": ["failed", "broken"],
+    "traceRegex": ".*(Timeout|waitUntil condition timed out).*"
+  },
+  {
+    "name": "Session / driver error",
+    "matchedStatuses": ["failed", "broken"],
+    "traceRegex": ".*(SessionNotCreated|invalid session|WebDriver).*"
+  },
+  {
+    "name": "Assertion failure",
+    "matchedStatuses": ["failed"],
+    "traceRegex": ".*(AssertionError|expect\\().*"
+  }
+]

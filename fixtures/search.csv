@@ -1,0 +1,4 @@
+query,expected_term,top_n
+toothpaste,toothpaste,10
+Colgate,colgate,10
+

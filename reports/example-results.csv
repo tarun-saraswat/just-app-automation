@@ -1,0 +1,2 @@
+scenario,android_version,provider,device,expected_result,observed_result,status,duration_ms,cloud_session_link
+preflight,N/A,LambdaTest Real Device Cloud,N/A,required runtime prerequisites configured,cloud execution not started because runtime credentials are not present,BLOCKED,0,
