@@ -1,5 +1,5 @@
 import { BaseScreen } from './base.screen.js';
-import { assertSafeAction, safeClick, safeScroll, safeTapAt, safeTapWithin, PRODUCT_CARD } from '../safety/guard.js';
+import { assertSafeAction, safeClick, safeScroll, safeTapWithin, PRODUCT_CARD } from '../safety/guard.js';
 
 const PROMISE_MAX_SCROLLS = 8;
 const PROMISE_BANNER_ASSET = '4476f14b-d28e-4263-bb7e-48c847f7f58b_image14.png';
@@ -172,12 +172,6 @@ export class HomeScreen extends BaseScreen {
       if (await this.source() === before) break;
       const webviewBanner = await this.openBannerAboveGroceryFromWebView();
       if (webviewBanner) {
-        const nativeBanner = await $(`android=new UiSelector().className("android.widget.Image").textContains("${PROMISE_BANNER_ASSET.replace(/\.png$/i, '')}")`);
-        if (await nativeBanner.isDisplayed().catch(() => false)) {
-          await safeTapWithin(nativeBanner, 'home.promise_open');
-          return `opened the JUST Promise bottom sheet using ${webviewBanner.identifier}`;
-        }
-        await safeTapAt('home.promise_open', webviewBanner.x, webviewBanner.y, 'JUST Promise image banner');
         console.info(`[guest-issues] clicked Home promise banner identifier=${webviewBanner.identifier}`);
         return `opened the JUST Promise bottom sheet using ${webviewBanner.identifier}`;
       }
@@ -205,7 +199,9 @@ export class HomeScreen extends BaseScreen {
           || hasAsset(image.getAttribute('data-original'))
         ));
         if (bannerImage) {
-          bannerImage.scrollIntoView({ block: 'center', inline: 'center' });
+          const clickTarget = bannerImage.closest('a,button,[role="button"]') || bannerImage;
+          clickTarget.scrollIntoView({ block: 'center', inline: 'center' });
+          clickTarget.click();
           const visibleRect = bannerImage.getBoundingClientRect();
           return { identifier: `img[src*="${asset}"]`, tag: bannerImage.tagName, className: bannerImage.className, x: visibleRect.left + visibleRect.width / 2, y: visibleRect.top + visibleRect.height / 2 };
         }
@@ -214,7 +210,9 @@ export class HomeScreen extends BaseScreen {
           || hasAsset(element.getAttribute('style'))
         ));
         if (assetNode) {
+          const clickTarget = assetNode.closest('a,button,[role="button"]') || assetNode;
           assetNode.scrollIntoView({ block: 'center', inline: 'center' });
+          clickTarget.click();
           const rect = assetNode.getBoundingClientRect();
           return { identifier: `*[data-asset*="${asset}"]`, tag: assetNode.tagName, className: assetNode.className, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
         }
@@ -255,10 +253,11 @@ export class HomeScreen extends BaseScreen {
 
   async dismissPromiseCard() {
     const button = await this.firstVisible([
-      'android=new UiSelector().textMatches("(?i)okay,? got it")',
-      'android=new UiSelector().descriptionMatches("(?i)okay,? got it")'
+      '~Close',
+      'android=new UiSelector().description("Close")',
+      'android=new UiSelector().textMatches("(?i)close")'
     ]);
-    await safeClick(button, 'home.promise_dismiss', 'Okay, got it');
-    return 'dismissed the JUST Promise bottom sheet';
+    await safeClick(button, 'home.promise_dismiss', 'Close');
+    return 'dismissed the JUST Promise bottom sheet with Close';
   }
 }

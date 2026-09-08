@@ -172,11 +172,12 @@ export class ProductScreen extends BaseScreen {
 
   async dismissPromiseCard() {
     const button = await this.firstVisible([
-      'android=new UiSelector().textMatches("(?i)okay,? got it")',
-      'android=new UiSelector().descriptionMatches("(?i)okay,? got it")'
+      '~Close',
+      'android=new UiSelector().description("Close")',
+      'android=new UiSelector().textMatches("(?i)close")'
     ]);
-    await safeClick(button, 'product.promise_dismiss', 'Okay, got it');
-    return 'dismissed the JUST Promise bottom sheet';
+    await safeClick(button, 'product.promise_dismiss', 'Close');
+    return 'dismissed the JUST Promise bottom sheet with Close';
   }
 
   async imageCarousel() {
