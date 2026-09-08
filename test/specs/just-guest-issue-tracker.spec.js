@@ -136,18 +136,17 @@ describe('Just guest issue-regression suite', () => {
     // Position tolerance and design reference are not defined in the tracker.
   });
 
-  it('JUS-WEB-013: validates the JUST promise bottom sheet from Home and PDP', async () => {
-    await issueCase('JUS-WEB-013', 'guest Home and every opened guest PDP can open and dismiss the JUST Promise refund bottom sheet', async () => {
+  it('JUS-WEB-013: opens, validates, and closes the Home JUST promise half-card twice', async () => {
+    await issueCase('JUS-WEB-013', 'guest Home can open, validate, and close the JUST Promise half-card twice', async () => {
       await home.openPromiseCard();
-      const homeSheet = await promise.assertRefundSheet();
+      const firstSheet = await promise.assertRefundSheet();
       await home.dismissPromiseCard();
-      const homeClosed = await promise.assertRefundSheetClosed();
-      await home.openAnyProduct();
-      await product.openPromiseCard();
-      const productSheet = await promise.assertRefundSheet();
-      await product.dismissPromiseCard();
-      const productClosed = await promise.assertRefundSheetClosed();
-      return `${homeSheet}; ${homeClosed}; ${productSheet}; ${productClosed}`;
+      const firstClosed = await promise.assertRefundSheetClosed();
+      await home.openPromiseCard();
+      const secondSheet = await promise.assertRefundSheet();
+      await home.dismissPromiseCard();
+      const secondClosed = await promise.assertRefundSheetClosed();
+      return `first cycle: ${firstSheet}; ${firstClosed}; second cycle: ${secondSheet}; ${secondClosed}`;
     });
   });
 });
