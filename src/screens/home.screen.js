@@ -1,8 +1,12 @@
 import { BaseScreen } from './base.screen.js';
 import { assertSafeAction, safeClick, safeScroll, safeTapWithin, PRODUCT_CARD } from '../safety/guard.js';
 
-const PROMISE_MAX_SCROLLS = 8;
+const PROMISE_MAX_SCROLLS = 24;
+const PROMISE_WIDGET_ID = '297620';
+const PROMISE_BANNER_ID = '9410991';
+const PROMISE_BANNER_TITLE = 'IM_JUST_STRIP';
 const PROMISE_BANNER_ASSET = '4476f14b-d28e-4263-bb7e-48c847f7f58b_image14.png';
+const PROMISE_HALF_CARD_ASSET = 'Half%20Card%20(1).png';
 
 export class HomeScreen extends BaseScreen {
   async isLoaded() {
@@ -82,6 +86,8 @@ export class HomeScreen extends BaseScreen {
     const webviewOpened = await this.openAnyProductFromWebView();
     if (webviewOpened) {
       await this.firstVisible([
+        '~Add item',
+        'android=new UiSelector().description("Add item")',
         'android=new UiSelector().descriptionMatches("(?i)add to cart")',
         'android=new UiSelector().textMatches("(?i)add to cart")'
       ], 15000);
@@ -109,6 +115,8 @@ export class HomeScreen extends BaseScreen {
         const [first] = candidates;
         await safeTapWithin(first.card, 'categories.product_view', 0.5, 0.35);
         await this.firstVisible([
+          '~Add item',
+          'android=new UiSelector().description("Add item")',
           'android=new UiSelector().descriptionMatches("(?i)add to cart")',
           'android=new UiSelector().textMatches("(?i)add to cart")'
         ], 10000);
@@ -127,6 +135,8 @@ export class HomeScreen extends BaseScreen {
       if (!PRODUCT_CARD.test(text)) continue;
       await safeTapWithin(title, 'categories.product_view', 0.5, 0.5);
       const detail = await this.firstVisible([
+        '~Add item',
+        'android=new UiSelector().description("Add item")',
         'android=new UiSelector().descriptionMatches("(?i)add to cart")',
         'android=new UiSelector().textMatches("(?i)add to cart")'
       ], 4000).catch(() => null);
@@ -161,20 +171,18 @@ export class HomeScreen extends BaseScreen {
   }
 
   async openPromiseCard() {
-    for (let viewport = 1; viewport <= PROMISE_MAX_SCROLLS; viewport += 1) {
-      const before = await this.source();
-      await this.scrollToPromiseViewport();
+    for (let viewport = 0; viewport <= PROMISE_MAX_SCROLLS; viewport += 1) {
       const target = await this.promiseCardTarget();
       if (target) {
         await safeTapWithin(target, 'home.promise_open');
         return `opened the JUST Promise bottom sheet from Home after ${viewport} viewport scroll(s)`;
       }
-      if (await this.source() === before) break;
       const webviewBanner = await this.openBannerAboveGroceryFromWebView();
       if (webviewBanner) {
         console.info(`[guest-issues] clicked Home promise banner identifier=${webviewBanner.identifier}`);
         return `opened the JUST Promise bottom sheet using ${webviewBanner.identifier}`;
       }
+      if (viewport < PROMISE_MAX_SCROLLS) await this.scrollToPromiseViewport();
     }
     throw new Error(`JUST Promise card was not exposed within ${PROMISE_MAX_SCROLLS} bounded Home viewport scrolls`);
   }
@@ -187,9 +195,23 @@ export class HomeScreen extends BaseScreen {
     if (!webview) return false;
     try {
       await browser.switchContext(webview);
-      return await browser.execute((asset) => {
+      return await browser.execute((identifiers) => {
         /* eslint-disable no-undef -- executed inside the app WebView */
-        const hasAsset = (value) => (value || '').includes(asset);
+        const values = (element) => [...element.attributes].map((attribute) => attribute.value).join(' ');
+        const nodes = [...document.querySelectorAll('*')];
+        const deeplinkNode = nodes.find((element) => {
+          const value = values(element);
+          return value.includes('externalWidget')
+            && value.includes('card_type=HALF_CARD')
+            && (value.includes(identifiers.halfCardAsset) || value.includes('Half Card (1).png'));
+        });
+        const metadataNode = nodes.find((element) => {
+          const value = values(element);
+          return value.includes(identifiers.bannerId)
+            || value.includes(identifiers.widgetId)
+            || value.includes(identifiers.bannerTitle);
+        });
+        const hasAsset = (value) => (value || '').includes(identifiers.bannerAsset);
         const bannerImage = [...document.images].find((image) => (
           hasAsset(image.src)
           || hasAsset(image.currentSrc)
@@ -198,12 +220,39 @@ export class HomeScreen extends BaseScreen {
           || hasAsset(image.getAttribute('data-lazy-src'))
           || hasAsset(image.getAttribute('data-original'))
         ));
-        if (bannerImage) {
-          const clickTarget = bannerImage.closest('a,button,[role="button"]') || bannerImage;
+        const normalize = (value) => (value || '').replace(/\s+/gu, ' ').trim();
+        const groceryHeading = nodes.find((element) => normalize(element.textContent) === 'Grocery & Kitchen');
+        let anchoredImage = null;
+        if (groceryHeading) {
+          const headingTop = groceryHeading.getBoundingClientRect().top;
+          anchoredImage = [...document.images]
+            .map((image) => ({ image, rect: image.getBoundingClientRect() }))
+            .filter(({ rect }) => rect.width >= window.innerWidth * 0.9
+              && rect.height / rect.width >= 0.18
+              && rect.height / rect.width <= 0.25
+              && rect.bottom <= headingTop + 8)
+            .sort((left, right) => (headingTop - left.rect.bottom) - (headingTop - right.rect.bottom))[0]?.image || null;
+        }
+        const identifiedNode = deeplinkNode || metadataNode || bannerImage || anchoredImage;
+        if (identifiedNode) {
+          const clickTarget = identifiedNode.matches('a,button,[role="button"]')
+            ? identifiedNode
+            : identifiedNode.closest('a,button,[role="button"]')
+              || identifiedNode.querySelector('a,button,[role="button"]')
+              || identifiedNode;
           clickTarget.scrollIntoView({ block: 'center', inline: 'center' });
           clickTarget.click();
-          const visibleRect = bannerImage.getBoundingClientRect();
-          return { identifier: `img[src*="${asset}"]`, tag: bannerImage.tagName, className: bannerImage.className, x: visibleRect.left + visibleRect.width / 2, y: visibleRect.top + visibleRect.height / 2 };
+          return {
+            identifier: deeplinkNode
+              ? `bannerId=${identifiers.bannerId};widgetId=${identifiers.widgetId};card_type=HALF_CARD`
+              : metadataNode
+                ? `bannerId=${identifiers.bannerId};widgetId=${identifiers.widgetId}`
+                : bannerImage
+                  ? `img[src*="${identifiers.bannerAsset}"]`
+                  : `widgetId=${identifiers.widgetId};fullwidth-image-before=Grocery & Kitchen`,
+            tag: identifiedNode.tagName,
+            className: identifiedNode.className
+          };
         }
         const assetNode = [...document.querySelectorAll('*')].find((element) => (
           [...element.attributes].some((attribute) => hasAsset(attribute.value))
@@ -213,12 +262,17 @@ export class HomeScreen extends BaseScreen {
           const clickTarget = assetNode.closest('a,button,[role="button"]') || assetNode;
           assetNode.scrollIntoView({ block: 'center', inline: 'center' });
           clickTarget.click();
-          const rect = assetNode.getBoundingClientRect();
-          return { identifier: `*[data-asset*="${asset}"]`, tag: assetNode.tagName, className: assetNode.className, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          return { identifier: `*[data-asset*="${identifiers.bannerAsset}"]`, tag: assetNode.tagName, className: assetNode.className };
         }
         // Do not click an inferred sibling: it can be a different catalogue card.
         return false;
-      }, PROMISE_BANNER_ASSET);
+      }, {
+        widgetId: PROMISE_WIDGET_ID,
+        bannerId: PROMISE_BANNER_ID,
+        bannerTitle: PROMISE_BANNER_TITLE,
+        bannerAsset: PROMISE_BANNER_ASSET,
+        halfCardAsset: PROMISE_HALF_CARD_ASSET
+      });
     } finally {
       if (originalContext) await browser.switchContext(originalContext);
     }

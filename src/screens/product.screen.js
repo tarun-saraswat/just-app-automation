@@ -3,6 +3,7 @@ import { safeClick, safeSwipeWithin, safeTapWithin, PRODUCT_CARD, PRICE, PACK_SI
 
 // Per-unit rate such as "₹150/100 g" or "₹60.8/kg".
 const UNIT_RATE = /₹\s?[\d.,]+\s*\/\s*\d*\s*(?:g|kg|ml|l|pc|pcs|piece)\b/i;
+const PROMISE_BANNER_ASSET_STEM = '4476f14b-d28e-4263-bb7e-48c847f7f58b_image14';
 
 export class ProductScreen extends BaseScreen {
   async loadedDocumentSource() {
@@ -137,37 +138,21 @@ export class ProductScreen extends BaseScreen {
     return `share sheet opened with product text and a product-specific HTTPS link, then returned to PDP`;
   }
 
-  // The Jus+ Promise banner is a tappable image with no accessible copy, so it
-  // is verified structurally: a full-width control between the title and the
-  // trust badges.
+  // The Jus+ Promise copy is painted into this image, whose asset stem is the
+  // stable accessibility text exposed by the current PDP WebView.
   async assertPromiseBanner() {
-    const { width } = await browser.getWindowSize();
-    const title = await this.productTitle();
-    const badge = await this.firstVisible(['android=new UiSelector().textContains("Genuine Product")']);
-    const badgeY = (await badge.getLocation()).y;
-    const nodes = await $$('android=new UiSelector().clickable(true)');
-    for (const node of nodes) {
-      if (!await node.isDisplayed().catch(() => false)) continue;
-      const [location, size] = await Promise.all([node.getLocation(), node.getSize()]);
-      if (location.y > title.y && location.y < badgeY && size.width >= width * 0.7) return true;
-    }
-    throw new Error('Jus+ Promise banner was not rendered between the product title and the trust badges');
+    await this.firstVisible([
+      `android=new UiSelector().className("android.widget.Image").textContains("${PROMISE_BANNER_ASSET_STEM}")`
+    ]);
+    return true;
   }
 
   async openPromiseCard() {
-    const { width } = await browser.getWindowSize();
-    const title = await this.productTitle();
-    const badge = await this.firstVisible(['android=new UiSelector().textContains("Genuine Product")']);
-    const badgeY = (await badge.getLocation()).y;
-    const nodes = await $$('android=new UiSelector().clickable(true)');
-    for (const node of nodes) {
-      if (!await node.isDisplayed().catch(() => false)) continue;
-      const [location, size] = await Promise.all([node.getLocation(), node.getSize()]);
-      if (location.y <= title.y || location.y >= badgeY || size.width < width * 0.7) continue;
-      await safeTapWithin(node, 'product.promise_open');
-      return 'opened the JUST Promise bottom sheet from the PDP';
-    }
-    throw new Error('JUST Promise banner was not tappable on the PDP');
+    const banner = await this.firstVisible([
+      `android=new UiSelector().className("android.widget.Image").textContains("${PROMISE_BANNER_ASSET_STEM}")`
+    ]);
+    await safeTapWithin(banner, 'product.promise_open');
+    return `opened the JUST Promise bottom sheet from the PDP using ${PROMISE_BANNER_ASSET_STEM}`;
   }
 
   async dismissPromiseCard() {

@@ -2,6 +2,14 @@ import { BaseScreen } from './base.screen.js';
 import { safeClick, safeSetValue } from '../safety/guard.js';
 
 export class LocationScreen extends BaseScreen {
+  async guestHomeMarker(timeoutMs = 1200) {
+    return this.firstVisible([
+      'android=new UiSelector().descriptionContains("user account")',
+      'android=new UiSelector().textContains("Search for")',
+      'android=new UiSelector().descriptionContains("Search for")'
+    ], timeoutMs).catch(() => null);
+  }
+
   async denyLocationPermissionOrContinue(timeoutMs = 8000) {
     const state = await this.firstVisible([
       'android=new UiSelector().textMatches("(?i)(don.t allow|deny)")',
@@ -24,6 +32,13 @@ export class LocationScreen extends BaseScreen {
 
   async selectGuestLocation(query, resultName) {
     await this.dismissCompatibilityNotice();
+    if (await this.guestHomeMarker()) return `${resultName} guest Home already active`;
+    const pdpAdd = await $('~Add item');
+    const pdpShare = await $('~Share');
+    if (await pdpAdd.isDisplayed().catch(() => false) && await pdpShare.isDisplayed().catch(() => false)) {
+      await this.back();
+      if (await this.guestHomeMarker(5000)) return `${resultName} guest Home restored from PDP`;
+    }
     try {
       const skip = await this.firstVisible([
         'android=new UiSelector().text("Skip")',
