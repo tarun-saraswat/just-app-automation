@@ -104,9 +104,12 @@ Useful runtime selections:
 AVD_NAME='<configured-avd-name>' RUN_SUITE=guest ./run-local.sh
 ADB_DEVICE='<adb-device-id>' RUN_SUITE=guest ./run-local.sh
 EMULATOR_AUTO_START=false RUN_SUITE=guest ./run-local.sh
+ALLOW_SENSITIVE_LOCAL_SCREENSHOTS=true RUN_SUITE=guest-issues ./run-local.sh
 ```
 
 The runner installs the repository-local Appium server and UiAutomator2 driver when needed, repairs a stale driver registration after the repository is moved, starts an available AVD when necessary, waits for Android to finish booting, and writes the report to `artifacts/local-<timestamp>/allure-report/index.html`. Local runs are debugging evidence, not cloud acceptance evidence.
+
+`ALLOW_SENSITIVE_LOCAL_SCREENSHOTS=true` disables the sensitive-screen check for failure screenshots only when `RUN_PROVIDER=local`. This opt-in can capture credentials or personal data, so use it only for local debugging and do not share its artifacts. Unredacted UI hierarchy XML is not saved through this bypass. Cloud runs ignore the flag and remain fail-closed.
 
 ## One-command run
 
