@@ -11,7 +11,8 @@ const ALLOWED = new Set([
   'orders.existing_order_view', 'orders.tracking_view',
   'search.input', 'search.submit', 'search.result_view',
   'categories.category_view', 'categories.subcategory_view', 'categories.subcategory_scroll', 'categories.product_view', 'product.information_expand',
-  'product.image_swipe', 'product.variant_select', 'product.share',
+  'product.image_swipe', 'product.variant_select', 'product.share', 'product.promise_open', 'product.promise_dismiss',
+  'cart.view', 'home.promise_open', 'home.promise_dismiss',
   'product.cart_add', 'product.cart_remove'
 ]);
 
@@ -67,7 +68,7 @@ export async function safeKey(action, key) {
 
 export async function safeTapWithin(element, action, xFraction = 0.5, yFraction = 0.5) {
   assertSafeAction(action);
-  if (!['login.terms', 'login.privacy', 'nav.categories', 'categories.category_view', 'categories.product_view', 'search.result_view', 'product.variant_select'].includes(action)) {
+  if (!['login.terms', 'login.privacy', 'nav.categories', 'categories.category_view', 'categories.product_view', 'search.result_view', 'product.variant_select', 'product.promise_open', 'home.promise_open'].includes(action)) {
     throw new SafetyViolation(`Coordinate tap is forbidden for ${action}`);
   }
   const text = await element.getText().catch(() => '');
@@ -76,7 +77,9 @@ export async function safeTapWithin(element, action, xFraction = 0.5, yFraction 
   }
   // Product cards are catalogue-driven, so the tap target is verified by shape
   // (branded product label plus a price) instead of any one product's name.
-  if (['categories.product_view', 'search.result_view'].includes(action) && !(PRODUCT_CARD.test(text) && PRICE.test(text))) {
+  const contentDescription = await element.getAttribute('content-desc').catch(() => '');
+  if (['categories.product_view', 'search.result_view'].includes(action)
+    && !PRODUCT_CARD.test(text) && !PRODUCT_CARD.test(contentDescription)) {
     throw new SafetyViolation(`Tap target did not resolve to a priced product card for ${action}`);
   }
   if (action === 'product.variant_select' && !(PACK_SIZE.test(text) && PRICE.test(text))) {
@@ -101,6 +104,22 @@ export async function safeTapWithin(element, action, xFraction = 0.5, yFraction 
     type: 'pointer', id: 'safe-policy-pointer', parameters: { pointerType: 'touch' },
     actions: [
       { type: 'pointerMove', duration: 0, x, y, origin: 'viewport' },
+      { type: 'pointerDown', button: 0 },
+      { type: 'pause', duration: 80 },
+      { type: 'pointerUp', button: 0 }
+    ]
+  }]);
+  await browser.releaseActions();
+}
+
+export async function safeTapAt(action, x, y, descriptor = '') {
+  assertSafeAction(action, descriptor);
+  if (action !== 'home.promise_open') throw new SafetyViolation(`Absolute coordinate tap is forbidden for ${action}`);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new SafetyViolation(`Invalid coordinate tap for ${action}`);
+  await browser.performActions([{
+    type: 'pointer', id: 'safe-coordinate-pointer', parameters: { pointerType: 'touch' },
+    actions: [
+      { type: 'pointerMove', duration: 0, x: Math.round(x), y: Math.round(y), origin: 'viewport' },
       { type: 'pointerDown', button: 0 },
       { type: 'pause', duration: 80 },
       { type: 'pointerUp', button: 0 }

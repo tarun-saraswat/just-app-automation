@@ -154,6 +154,31 @@ export class ProductScreen extends BaseScreen {
     throw new Error('Jus+ Promise banner was not rendered between the product title and the trust badges');
   }
 
+  async openPromiseCard() {
+    const { width } = await browser.getWindowSize();
+    const title = await this.productTitle();
+    const badge = await this.firstVisible(['android=new UiSelector().textContains("Genuine Product")']);
+    const badgeY = (await badge.getLocation()).y;
+    const nodes = await $$('android=new UiSelector().clickable(true)');
+    for (const node of nodes) {
+      if (!await node.isDisplayed().catch(() => false)) continue;
+      const [location, size] = await Promise.all([node.getLocation(), node.getSize()]);
+      if (location.y <= title.y || location.y >= badgeY || size.width < width * 0.7) continue;
+      await safeTapWithin(node, 'product.promise_open');
+      return 'opened the JUST Promise bottom sheet from the PDP';
+    }
+    throw new Error('JUST Promise banner was not tappable on the PDP');
+  }
+
+  async dismissPromiseCard() {
+    const button = await this.firstVisible([
+      'android=new UiSelector().textMatches("(?i)okay,? got it")',
+      'android=new UiSelector().descriptionMatches("(?i)okay,? got it")'
+    ]);
+    await safeClick(button, 'product.promise_dismiss', 'Okay, got it');
+    return 'dismissed the JUST Promise bottom sheet';
+  }
+
   async imageCarousel() {
     return this.firstVisible([
       'android=new UiSelector().className("android.webkit.WebView")',
@@ -286,6 +311,16 @@ export class ProductScreen extends BaseScreen {
       'android=new UiSelector().resourceIdMatches(".*(delete|remove|trash).*")'
     ], 2000);
     return 'one product added to the guest cart';
+  }
+
+  async openCart() {
+    const target = await this.firstVisible([
+      'android=new UiSelector().textMatches("(?i)your cart")',
+      'android=new UiSelector().descriptionMatches("(?i)(your cart|cart)")',
+      'android=new UiSelector().textMatches("(?i)view cart")'
+    ]);
+    await safeClick(target, 'cart.view', 'Cart');
+    return 'opened the guest cart';
   }
 
   async removeFromCart() {

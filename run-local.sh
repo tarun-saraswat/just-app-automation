@@ -26,7 +26,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export "$name=$value"
 done < .env
 
-if [[ "${RUN_SUITE:-login}" != "guest" ]]; then
+run_suite="${RUN_SUITE:-login}"
+if [[ "$run_suite" != "guest" && "$run_suite" != "guest-issues" ]]; then
   missing=()
   for name in JUST_TEST_PHONE JUST_TEST_OTP; do
     [[ -n "${!name:-}" ]] || missing+=("$name")
@@ -205,14 +206,23 @@ export RUN_ROOT="$SCRIPT_DIR/artifacts/local-$run_stamp"
 export RUN_ARTIFACT_DIR="$RUN_ROOT/emulator"
 mkdir -p "$RUN_ARTIFACT_DIR"
 
-if [[ "${RUN_SUITE:-login}" == "guest" ]]; then
-  test_script="test:local:guest"
-else
-  test_script="test:local"
-fi
-echo "Running local-emulator ${RUN_SUITE:-login} tests (debug only; not acceptance)..."
+case "$run_suite" in
+  login) test_script="test:local" ;;
+  guest) test_script="test:local:guest" ;;
+  guest-issues) test_script="test:local:guest:issues" ;;
+  *)
+    echo "Unsupported RUN_SUITE=$run_suite. Use login, guest, or guest-issues." >&2
+    exit 2
+    ;;
+esac
+echo "Running local-emulator $run_suite tests (debug only; not acceptance)..."
 set +e
-npm run "$test_script"
+if [[ -n "${TEST_GREP:-}" ]]; then
+  echo "Filtering tests with TEST_GREP=$TEST_GREP"
+  npm run "$test_script" -- --mochaOpts.grep "$TEST_GREP"
+else
+  npm run "$test_script"
+fi
 test_status=$?
 set -e
 

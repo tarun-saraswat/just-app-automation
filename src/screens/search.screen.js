@@ -1,5 +1,5 @@
 import { BaseScreen } from './base.screen.js';
-import { safeClick, safeKey, safeSetValue, safeTapWithin, PRODUCT_CARD, PRICE } from '../safety/guard.js';
+import { safeClick, safeKey, safeSetValue, safeTapWithin, PRODUCT_CARD } from '../safety/guard.js';
 
 export class SearchScreen extends BaseScreen {
   async search(query) {
@@ -78,14 +78,19 @@ export class SearchScreen extends BaseScreen {
     let candidates = [];
     while (Date.now() < deadline) {
       candidates = [];
-      const cards = await $$('android=new UiSelector().className("android.widget.Button").clickable(true).textContains("Jus+")');
+      const cards = [
+        ...(await $$('android=new UiSelector().className("android.widget.Image").descriptionContains("Jus+")')),
+        ...(await $$('android=new UiSelector().className("android.widget.Button").clickable(true).textContains("Jus+")'))
+      ];
       for (const card of cards) {
         if (!await card.isDisplayed().catch(() => false)) continue;
         const text = ((await card.getText().catch(() => '')) || '').normalize('NFKC').replace(/\s+/gu, ' ').trim();
-        if (!PRODUCT_CARD.test(text) || !PRICE.test(text)) continue;
+        const description = ((await card.getAttribute('content-desc').catch(() => '')) || '').normalize('NFKC').replace(/\s+/gu, ' ').trim();
+        if (!PRODUCT_CARD.test(text) && !PRODUCT_CARD.test(description)) continue;
         const location = await card.getLocation();
-        const name = (text.match(/^(.+?)(?=\s+(?:Add item\b|\d+(?:\.\d+)?\s*(?:g|kg|ml|l|pc|pcs|piece|pieces)\b|₹))/i)?.[1] || text).trim();
-        candidates.push({ card, text, name, ...location });
+        const nameText = text || description;
+        const name = (nameText.match(/^(.+?)(?=\s+(?:Add item\b|\d+(?:\.\d+)?\s*(?:g|kg|ml|l|pc|pcs|piece|pieces)\b|₹))/i)?.[1] || nameText).trim();
+        candidates.push({ card, text: nameText, name, ...location });
       }
       if (candidates.length) break;
       await browser.pause(500);

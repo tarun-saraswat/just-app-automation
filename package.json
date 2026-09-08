@@ -12,6 +12,8 @@
     "test:cloud:guest:one": "wdio run wdio.guest.cloud.conf.js",
     "test:local": "wdio run wdio.local.conf.js",
     "test:local:guest": "wdio run wdio.guest.local.conf.js",
+    "test:local:guest:issues": "wdio run wdio.guest.issues.local.conf.js",
+    "test:cloud:guest:issues": "wdio run wdio.guest.issues.cloud.conf.js",
     "report:allure": "node scripts/generate-allure-report.js",
     "debug:login:inspect": "node scripts/local-login-debug.js inspect",
     "test:offline": "node --test test/unit/*.test.js",

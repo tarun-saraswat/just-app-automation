@@ -81,6 +81,17 @@ npm run verify
 RUN_SUITE=guest ./run-local.sh
 ```
 
+The issue-regression guest suite can be run through the same local entry point
+after setting up an APK and Android device:
+
+```sh
+RUN_SUITE=guest-issues ./run-local.sh
+```
+
+It executes the issue-tracker cases with stable runtime oracles and keeps
+design/backend-only cases visible as explicitly skipped until their fixtures
+and acceptance criteria are available.
+
 To run the login/policy suite:
 
 ```sh
