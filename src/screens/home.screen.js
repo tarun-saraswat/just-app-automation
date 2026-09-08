@@ -2,10 +2,7 @@ import { BaseScreen } from './base.screen.js';
 import { assertSafeAction, safeClick, safeScroll, safeTapWithin, PRODUCT_CARD } from '../safety/guard.js';
 
 const PROMISE_MAX_SCROLLS = 24;
-const PROMISE_WIDGET_ID = '297620';
-const PROMISE_BANNER_ID = '9410991';
-const PROMISE_BANNER_TITLE = 'IM_JUST_STRIP';
-const PROMISE_BANNER_ASSET = '4476f14b-d28e-4263-bb7e-48c847f7f58b_image14.png';
+const PROMISE_BANNER_ASSET_STEM = '4476f14b-d28e-4263-bb7e-48c847f7f58b_image14';
 const PROMISE_HALF_CARD_ASSET = 'Half%20Card%20(1).png';
 
 export class HomeScreen extends BaseScreen {
@@ -170,24 +167,27 @@ export class HomeScreen extends BaseScreen {
     }
   }
 
-  async openPromiseCard() {
+  async openPromiseHalfCard() {
     for (let viewport = 0; viewport <= PROMISE_MAX_SCROLLS; viewport += 1) {
-      const target = await this.promiseCardTarget();
+      const target = await this.nativePromiseBanner();
       if (target) {
         await safeTapWithin(target, 'home.promise_open');
         return `opened the JUST Promise bottom sheet from Home after ${viewport} viewport scroll(s)`;
       }
-      const webviewBanner = await this.openBannerAboveGroceryFromWebView();
+      const webviewBanner = await this.clickPromiseBannerInWebView();
       if (webviewBanner) {
         console.info(`[guest-issues] clicked Home promise banner identifier=${webviewBanner.identifier}`);
         return `opened the JUST Promise bottom sheet using ${webviewBanner.identifier}`;
       }
-      if (viewport < PROMISE_MAX_SCROLLS) await this.scrollToPromiseViewport();
+      if (viewport < PROMISE_MAX_SCROLLS) {
+        await safeScroll('nav.scroll', 'down');
+        await browser.pause(400);
+      }
     }
     throw new Error(`JUST Promise card was not exposed within ${PROMISE_MAX_SCROLLS} bounded Home viewport scrolls`);
   }
 
-  async openBannerAboveGroceryFromWebView() {
+  async clickPromiseBannerInWebView() {
     assertSafeAction('home.promise_open', 'JUST Promise image banner');
     const originalContext = await browser.getContext().catch(() => null);
     const contexts = await browser.getContexts().catch(() => []);
@@ -195,33 +195,21 @@ export class HomeScreen extends BaseScreen {
     if (!webview) return false;
     try {
       await browser.switchContext(webview);
-      return await browser.execute((identifiers) => {
+      return await browser.execute((bannerAssetStem, halfCardAsset) => {
         /* eslint-disable no-undef -- executed inside the app WebView */
-        const values = (element) => [...element.attributes].map((attribute) => attribute.value).join(' ');
-        const nodes = [...document.querySelectorAll('*')];
-        const deeplinkNode = nodes.find((element) => {
-          const value = values(element);
-          return value.includes('externalWidget')
+        const deeplinkNode = [...document.querySelectorAll('a[href],[data-deeplink]')]
+          .find((element) => [...element.attributes].some(({ value }) => (
+            value.includes('externalWidget')
             && value.includes('card_type=HALF_CARD')
-            && (value.includes(identifiers.halfCardAsset) || value.includes('Half Card (1).png'));
-        });
-        const metadataNode = nodes.find((element) => {
-          const value = values(element);
-          return value.includes(identifiers.bannerId)
-            || value.includes(identifiers.widgetId)
-            || value.includes(identifiers.bannerTitle);
-        });
-        const hasAsset = (value) => (value || '').includes(identifiers.bannerAsset);
+            && (value.includes(halfCardAsset) || value.includes('Half Card (1).png'))
+          )));
         const bannerImage = [...document.images].find((image) => (
-          hasAsset(image.src)
-          || hasAsset(image.currentSrc)
-          || hasAsset(image.getAttribute('srcset'))
-          || hasAsset(image.getAttribute('data-src'))
-          || hasAsset(image.getAttribute('data-lazy-src'))
-          || hasAsset(image.getAttribute('data-original'))
+          [image.src, image.currentSrc, image.srcset, image.getAttribute('data-src')]
+            .some((value) => (value || '').includes(bannerAssetStem))
         ));
         const normalize = (value) => (value || '').replace(/\s+/gu, ' ').trim();
-        const groceryHeading = nodes.find((element) => normalize(element.textContent) === 'Grocery & Kitchen');
+        const groceryHeading = [...document.querySelectorAll('*')]
+          .find((element) => normalize(element.textContent) === 'Grocery & Kitchen');
         let anchoredImage = null;
         if (groceryHeading) {
           const headingTop = groceryHeading.getBoundingClientRect().top;
@@ -233,7 +221,7 @@ export class HomeScreen extends BaseScreen {
               && rect.bottom <= headingTop + 8)
             .sort((left, right) => (headingTop - left.rect.bottom) - (headingTop - right.rect.bottom))[0]?.image || null;
         }
-        const identifiedNode = deeplinkNode || metadataNode || bannerImage || anchoredImage;
+        const identifiedNode = deeplinkNode || bannerImage || anchoredImage;
         if (identifiedNode) {
           const clickTarget = identifiedNode.matches('a,button,[role="button"]')
             ? identifiedNode
@@ -244,74 +232,23 @@ export class HomeScreen extends BaseScreen {
           clickTarget.click();
           return {
             identifier: deeplinkNode
-              ? `bannerId=${identifiers.bannerId};widgetId=${identifiers.widgetId};card_type=HALF_CARD`
-              : metadataNode
-                ? `bannerId=${identifiers.bannerId};widgetId=${identifiers.widgetId}`
-                : bannerImage
-                  ? `img[src*="${identifiers.bannerAsset}"]`
-                  : `widgetId=${identifiers.widgetId};fullwidth-image-before=Grocery & Kitchen`,
+              ? 'deeplink[card_type=HALF_CARD]'
+              : bannerImage
+                ? `img[src*="${bannerAssetStem}"]`
+                : 'fullwidth-image-before=Grocery & Kitchen',
             tag: identifiedNode.tagName,
             className: identifiedNode.className
           };
         }
-        const assetNode = [...document.querySelectorAll('*')].find((element) => (
-          [...element.attributes].some((attribute) => hasAsset(attribute.value))
-          || hasAsset(element.getAttribute('style'))
-        ));
-        if (assetNode) {
-          const clickTarget = assetNode.closest('a,button,[role="button"]') || assetNode;
-          assetNode.scrollIntoView({ block: 'center', inline: 'center' });
-          clickTarget.click();
-          return { identifier: `*[data-asset*="${identifiers.bannerAsset}"]`, tag: assetNode.tagName, className: assetNode.className };
-        }
-        // Do not click an inferred sibling: it can be a different catalogue card.
         return false;
-      }, {
-        widgetId: PROMISE_WIDGET_ID,
-        bannerId: PROMISE_BANNER_ID,
-        bannerTitle: PROMISE_BANNER_TITLE,
-        bannerAsset: PROMISE_BANNER_ASSET,
-        halfCardAsset: PROMISE_HALF_CARD_ASSET
-      });
+      }, PROMISE_BANNER_ASSET_STEM, PROMISE_HALF_CARD_ASSET);
     } finally {
       if (originalContext) await browser.switchContext(originalContext);
     }
   }
 
-  async promiseCardTarget() {
-    const { width, height } = await browser.getWindowSize();
-    const assetImage = await $('android=new UiSelector().textContains("4476f14b-d28e-4263-bb7e-48c847f7f58b_image14")');
-    if (await assetImage.isExisting().catch(() => false)) return assetImage;
-    const images = await $$('android=new UiSelector().className("android.widget.Image")');
-    for (const image of images) {
-      if (!await image.isDisplayed().catch(() => false)) continue;
-      const resourceId = await image.getAttribute('resource-id').catch(() => '');
-      const imageAsset = await image.getText().catch(() => '');
-      if (imageAsset.includes(PROMISE_BANNER_ASSET.replace(/\.png$/i, ''))
-        || /(promise|refund|return|split)/i.test(resourceId)) return image;
-    }
-    const containers = await $$('android=new UiSelector().resourceIdMatches(".*homeSplitCardContainer")');
-    for (const container of containers) {
-      if (!await container.isDisplayed().catch(() => false)) continue;
-      const [location, size] = await Promise.all([container.getLocation(), container.getSize()]);
-      if (size.width >= width * 0.7 && size.height >= 100 && size.height <= height * 0.5
-        && location.y >= height * 0.1 && location.y <= height * 0.8) return container;
-    }
-    return null;
-  }
-
-  async scrollToPromiseViewport() {
-    await safeScroll('nav.scroll', 'down');
-    await browser.pause(400);
-  }
-
-  async dismissPromiseCard() {
-    const button = await this.firstVisible([
-      '~Close',
-      'android=new UiSelector().description("Close")',
-      'android=new UiSelector().textMatches("(?i)close")'
-    ]);
-    await safeClick(button, 'home.promise_dismiss', 'Close');
-    return 'dismissed the JUST Promise bottom sheet with Close';
+  async nativePromiseBanner() {
+    const image = await $(`android=new UiSelector().className("android.widget.Image").textContains("${PROMISE_BANNER_ASSET_STEM}")`);
+    return await image.isDisplayed().catch(() => false) ? image : null;
   }
 }

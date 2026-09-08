@@ -138,14 +138,14 @@ describe('Just guest issue-regression suite', () => {
 
   it('JUS-WEB-013: opens, validates, and closes the Home JUST promise half-card twice', async () => {
     await issueCase('JUS-WEB-013', 'guest Home can open, validate, and close the JUST Promise half-card twice', async () => {
-      await home.openPromiseCard();
-      const firstSheet = await promise.assertRefundSheet();
-      await home.dismissPromiseCard();
-      const firstClosed = await promise.assertRefundSheetClosed();
-      await home.openPromiseCard();
-      const secondSheet = await promise.assertRefundSheet();
-      await home.dismissPromiseCard();
-      const secondClosed = await promise.assertRefundSheetClosed();
+      await home.openPromiseHalfCard();
+      const firstSheet = await promise.assertOpen();
+      await promise.close();
+      const firstClosed = await promise.assertClosed();
+      await home.openPromiseHalfCard();
+      const secondSheet = await promise.assertOpen();
+      await promise.close();
+      const secondClosed = await promise.assertClosed();
       return `first cycle: ${firstSheet}; ${firstClosed}; second cycle: ${secondSheet}; ${secondClosed}`;
     });
   });

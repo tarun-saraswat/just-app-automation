@@ -147,24 +147,6 @@ export class ProductScreen extends BaseScreen {
     return true;
   }
 
-  async openPromiseCard() {
-    const banner = await this.firstVisible([
-      `android=new UiSelector().className("android.widget.Image").textContains("${PROMISE_BANNER_ASSET_STEM}")`
-    ]);
-    await safeTapWithin(banner, 'product.promise_open');
-    return `opened the JUST Promise bottom sheet from the PDP using ${PROMISE_BANNER_ASSET_STEM}`;
-  }
-
-  async dismissPromiseCard() {
-    const button = await this.firstVisible([
-      '~Close',
-      'android=new UiSelector().description("Close")',
-      'android=new UiSelector().textMatches("(?i)close")'
-    ]);
-    await safeClick(button, 'product.promise_dismiss', 'Close');
-    return 'dismissed the JUST Promise bottom sheet with Close';
-  }
-
   async imageCarousel() {
     return this.firstVisible([
       'android=new UiSelector().className("android.webkit.WebView")',
