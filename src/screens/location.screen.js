@@ -2,6 +2,26 @@ import { BaseScreen } from './base.screen.js';
 import { safeClick, safeSetValue } from '../safety/guard.js';
 
 export class LocationScreen extends BaseScreen {
+  async denyLocationPermissionOrContinue(timeoutMs = 8000) {
+    const state = await this.firstVisible([
+      'android=new UiSelector().textMatches("(?i)(don.t allow|deny)")',
+      'android=new UiSelector().resourceIdMatches(".*permission_deny.*")',
+      'android=new UiSelector().text("Select Your Location")'
+    ], timeoutMs);
+    const [text, resourceId, packageName] = await Promise.all([
+      state.getText().catch(() => ''),
+      state.getAttribute('resource-id').catch(() => ''),
+      state.getAttribute('package').catch(() => '')
+    ]);
+    if (/don.t allow|deny/i.test(text)
+      || /permission_deny/i.test(resourceId)
+      || /permissioncontroller/i.test(packageName)) {
+      await safeClick(state, 'system.location_deny', 'Deny location permission');
+      return true;
+    }
+    return false;
+  }
+
   async selectGuestLocation(query, resultName) {
     await this.dismissCompatibilityNotice();
     try {
@@ -12,13 +32,7 @@ export class LocationScreen extends BaseScreen {
       await safeClick(skip, 'login.skip', 'Skip');
     } catch { /* A previously skipped guest session can open location directly. */ }
     await this.dismissCompatibilityNotice();
-    try {
-      const denyLocation = await this.firstVisible([
-        'android=new UiSelector().textMatches("(?i)(don.t allow|deny)")',
-        'android=new UiSelector().resourceIdMatches(".*permission_deny.*")'
-      ], 8000);
-      await safeClick(denyLocation, 'system.location_deny', 'Deny location permission');
-    } catch { /* The prompt is absent when permission state is already settled. */ }
+    await this.denyLocationPermissionOrContinue();
     try {
       await this.textVisible('Select Your Location', true);
     } catch (error) {

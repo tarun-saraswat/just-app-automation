@@ -1,27 +1,101 @@
 # Just production read-only Android sanity
 
-This is a cloud-first Appium 2 + WebdriverIO suite for the Just production Android app. Acceptance runs are intentionally restricted to TestMu/LambdaTest Android Real Device Cloud. No test adds items, changes an address or profile, modifies an order, contacts support/delivery, or enters checkout/payment.
+This is a cloud-first Appium + WebdriverIO suite for the Just production Android app. Acceptance runs are intentionally restricted to TestMu/LambdaTest Android Real Device Cloud. The guest suite may add one item and immediately remove it to validate cart controls; tests do not change an address or profile, modify an order, contact support/delivery, or enter checkout/payment.
 
 ## Safety model
 
-Every tap and text/keyboard interaction goes through `src/safety/guard.js`. An action must be explicitly allowlisted, and the resolved element text/accessibility label is checked again against mutation terms before clicking. Unknown actions and suspicious CTAs fail before interaction. Product Add/Buy/View Cart/quantity controls are never selected.
+Every tap and text/keyboard interaction goes through `src/safety/guard.js`. An action must be explicitly allowlisted, and the resolved element text/accessibility label is checked again against mutation terms before clicking. Unknown actions and suspicious CTAs fail before interaction. Cart mutation is limited to the explicitly allowlisted guest add/remove checks; checkout and purchasing controls remain forbidden.
 
 Evidence is disabled for login, OTP, profile, address, and order-detail screens. On approved screens, hierarchy is scanned before either XML or screenshot is written. Runtime secrets, phone-like values, OTP-like values, and address-like text cause evidence collection to fail closed. Reports redact runtime secrets and contain only non-sensitive product/category observations.
 
 ## Prerequisites
 
+For local execution:
+
 - Node.js 20+
+- Java Development Kit (JDK) 17+
+- Android Studio with the Android SDK, platform tools, emulator, and at least one configured Android Virtual Device (AVD), or a connected Android device with USB debugging enabled
+
+Additionally, for cloud execution:
+
 - TestMu/LambdaTest App Automation and Real Device Cloud access
 - Three available Android real-device combinations
 - APK upload permission when `LT_APP_ID` is not already supplied
 - Runtime-only `LT_USERNAME`, `LT_ACCESS_KEY`, `JUST_TEST_PHONE`, and `JUST_TEST_OTP`
 - Either an `lt://APP…` value in `LT_APP_ID`, or the supplied APK available through `APK_PATH`
 
-Install dependencies:
+Install dependencies from the repository root:
 
 ```sh
-npm install
+npm ci
 ```
+
+## Local setup and run
+
+1. Clone the repository and enter it:
+
+```sh
+git clone <repository-url>
+cd just-qa-automation
+```
+
+2. Install the required Node.js packages:
+
+```sh
+npm ci
+```
+
+3. Create the ignored runtime configuration:
+
+```sh
+cp .env.example .env
+```
+
+The guest suite does not require login credentials. For the login suite, add `JUST_TEST_PHONE` and `JUST_TEST_OTP` to `.env`. Never commit real credentials.
+
+4. Put exactly one APK in the repository's `apk/` directory:
+
+```sh
+mkdir -p apk
+cp <path-to-downloaded-apk> apk/just.apk
+```
+
+5. Ensure Android tooling is available. On macOS, the runner automatically detects the standard SDK location. On other installations, set the SDK location and update `PATH`:
+
+```sh
+export JAVA_HOME=<jdk-directory>
+export ANDROID_SDK_ROOT=<android-sdk-directory>
+export ANDROID_HOME="$ANDROID_SDK_ROOT"
+export PATH="$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH"
+node --version
+java -version
+adb devices
+```
+
+Create an AVD in Android Studio's Device Manager if `adb devices` shows no connected device and no AVD exists. The runner discovers connected devices and configured AVDs at runtime; no device name or machine path is stored in source.
+
+6. Verify the repository and run the guest suite:
+
+```sh
+npm run verify
+RUN_SUITE=guest ./run-local.sh
+```
+
+To run the login/policy suite:
+
+```sh
+./run-local.sh
+```
+
+Useful runtime selections:
+
+```sh
+AVD_NAME='<configured-avd-name>' RUN_SUITE=guest ./run-local.sh
+ADB_DEVICE='<adb-device-id>' RUN_SUITE=guest ./run-local.sh
+EMULATOR_AUTO_START=false RUN_SUITE=guest ./run-local.sh
+```
+
+The runner installs the repository-local Appium server and UiAutomator2 driver when needed, repairs a stale driver registration after the repository is moved, starts an available AVD when necessary, waits for Android to finish booting, and writes the report to `artifacts/local-<timestamp>/allure-report/index.html`. Local runs are debugging evidence, not cloud acceptance evidence.
 
 ## One-command run
 
@@ -50,7 +124,7 @@ Copy `.env.example` to `.env` if desired. `.env` is ignored. Prefer exporting se
 If an app ID is not already available:
 
 ```sh
-export APK_PATH='/absolute/path/to/app.apk'
+export APK_PATH='apk/just.apk'
 export LT_USERNAME='runtime-only'
 export LT_ACCESS_KEY='runtime-only'
 npm run upload:apk
@@ -110,7 +184,7 @@ One explicitly selected real device:
 DEVICE_NAME='Samsung Galaxy S22 5G' ANDROID_VERSION=14 npm run test:cloud:one
 ```
 
-Local-emulator execution is deliberately not wired into the acceptance config. A separate local debug adapter can be added later, but it must not be used to claim acceptance.
+Local-emulator execution uses a separate debug configuration and must not be used to claim acceptance.
 
 ## Current executable coverage
 
@@ -136,7 +210,7 @@ npm run debug:login:inspect
 
 The helper stops at post-login permission prompts; it does not grant location or notification access.
 
-To run the complete login/policy WDIO spec on the already-running emulator and create an Allure report:
+To run the complete login/policy WDIO spec and create an Allure report:
 
 ```sh
 ./run-local.sh

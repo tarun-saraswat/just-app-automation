@@ -110,19 +110,15 @@ export class ProductScreen extends BaseScreen {
       '~Share',
       'android=new UiSelector().descriptionMatches("(?i)share")'
     ]);
+    await safeClick(share, 'product.share', 'Share');
     let source = '';
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      await safeClick(share, 'product.share', 'Share');
-      const shareDeadline = Date.now() + 2000;
-      while (Date.now() < shareDeadline) {
-        source = await this.source();
-        if (/intentresolver|resolveractivity|sharesheet|share with|sharing/i.test(source)) break;
-        await browser.pause(100);
-      }
-      if (/intentresolver|resolveractivity|sharesheet|share with|sharing/i.test(source)) break;
-      console.info(`[pdp-share] navigation retry attempt=${attempt}`);
+    const shareDeadline = Date.now() + 2000;
+    while (Date.now() < shareDeadline) {
+      source = await this.source();
+      if (/intentresolver|resolveractivity|sharesheet|quick share|share with|sharing/i.test(source)) break;
+      await browser.pause(100);
     }
-    if (!/intentresolver|resolveractivity|sharesheet|share with|sharing/i.test(source)) {
+    if (!/intentresolver|resolveractivity|sharesheet|quick share|share with|sharing/i.test(source)) {
       throw new Error('Share button did not open the Android share sheet');
     }
     const visible = [...source.matchAll(/(?:text|content-desc)="([^"]+)"/g)]
@@ -262,7 +258,10 @@ export class ProductScreen extends BaseScreen {
       }
       if (!PRICE.test(summary)) throw new Error(`Summary bar lost its price after selecting ${option.size}`);
       const source = await this.source();
-      this.assertSourceHas(source, [PRODUCT_CARD, /add to cart/i, /genuine product/i], `Sections after selecting ${option.size}`);
+      // Variant selection may briefly rebuild the WebView accessibility tree.
+      // Validate the variant-specific stable controls here; assertAllSections()
+      // validates trust badges once after all variant switches are complete.
+      this.assertSourceHas(source, [PRODUCT_CARD, /add to cart/i], `Sections after selecting ${option.size}`);
       visited.push(`${option.size} -> ${summary}`);
     }
     if (new Set(visited.map((entry) => entry.split(' -> ')[1])).size < visited.length) {
@@ -281,11 +280,11 @@ export class ProductScreen extends BaseScreen {
     await safeClick(button, 'product.cart_add', 'Add to Cart');
     await this.firstVisible([
       'android=new UiSelector().textMatches("(?i)your cart")',
-      'android=new UiSelector().descriptionMatches("(?i)your cart")',
+      'android=new UiSelector().descriptionMatches("(?i)your cart.*")',
       'android=new UiSelector().text("1")',
       'android=new UiSelector().descriptionMatches("(?i)(delete|remove|trash).*")',
       'android=new UiSelector().resourceIdMatches(".*(delete|remove|trash).*")'
-    ]);
+    ], 2000);
     return 'one product added to the guest cart';
   }
 

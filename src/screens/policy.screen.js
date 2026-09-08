@@ -28,7 +28,7 @@ export class PolicyScreen extends BaseScreen {
           await browser.switchContext('NATIVE_APP').catch(() => undefined);
         }
       }
-      await browser.pause(500);
+      await browser.pause(100);
     }
     throw new Error(`Policy WebView content did not become available${lastError ? `: ${lastError.message}` : ''}`);
   }

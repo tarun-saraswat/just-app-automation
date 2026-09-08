@@ -5,6 +5,7 @@ export class HomeScreen extends BaseScreen {
   async isLoaded() {
     for (const selector of [
       '~Account', '~Profile',
+      'android=new UiSelector().descriptionContains("user account")',
       'android=new UiSelector().descriptionMatches("(?i)(account|profile)")'
     ]) {
       const element = await $(selector);
@@ -16,6 +17,7 @@ export class HomeScreen extends BaseScreen {
   async waitLoaded() {
     const marker = await this.firstVisible([
       '~Account', '~Profile',
+      'android=new UiSelector().descriptionContains("user account")',
       'android=new UiSelector().descriptionMatches("(?i)(account|profile)")'
     ], 30000);
     const source = await this.source();
@@ -37,6 +39,8 @@ export class HomeScreen extends BaseScreen {
   async openAccount() {
     const target = await this.firstVisible([
       '~Account', '~Profile',
+      'android=new UiSelector().descriptionContains("user account")',
+      'android=new UiSelector().descriptionMatches("(?i)(account|profile)")',
       'android=new UiSelector().textMatches("(?i)(account|profile)")'
     ]);
     await safeClick(target, 'nav.account', 'Account');

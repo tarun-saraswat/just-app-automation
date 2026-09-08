@@ -7,6 +7,7 @@ const ALLOWED = new Set([
   'nav.home', 'nav.account', 'nav.search', 'nav.categories', 'nav.back', 'nav.scroll',
   'location.input', 'location.select',
   'account.profile_view', 'account.saved_addresses_view', 'account.order_history_view',
+  'account.logout', 'account.logout_confirm',
   'orders.existing_order_view', 'orders.tracking_view',
   'search.input', 'search.submit', 'search.result_view',
   'categories.category_view', 'categories.subcategory_view', 'categories.subcategory_scroll', 'categories.product_view', 'product.information_expand',
@@ -14,7 +15,10 @@ const ALLOWED = new Set([
   'product.cart_add', 'product.cart_remove'
 ]);
 
-const ALLOWED_MUTATIONS = new Set(['product.cart_add', 'product.cart_remove']);
+const ALLOWED_MUTATIONS = new Set([
+  'account.logout', 'account.logout_confirm',
+  'product.cart_add', 'product.cart_remove'
+]);
 // Product cards in this build are a single accessibility node whose label also
 // contains the nested "Add item" CTA. These two actions only open that card.
 const COMPOSITE_NAVIGATION = new Set(['categories.product_view', 'search.result_view']);

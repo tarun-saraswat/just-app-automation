@@ -1,10 +1,18 @@
 import { Results } from '../../src/reporting/results.js';
 import { LoginScreen } from '../../src/screens/login.screen.js';
 import { PolicyScreen } from '../../src/screens/policy.screen.js';
+import { AccountScreen } from '../../src/screens/account.screen.js';
+import { HomeScreen } from '../../src/screens/home.screen.js';
+import { LocationScreen } from '../../src/screens/location.screen.js';
+import { readCsv } from '../../src/utils/csv.js';
 
 const results = new Results();
 const login = new LoginScreen();
 const policy = new PolicyScreen();
+const account = new AccountScreen();
+const home = new HomeScreen();
+const location = new LocationScreen();
+const accountFixture = readCsv('fixtures/account.csv');
 
 async function scenario(name, expected, body) {
   const started = Date.now();
@@ -16,6 +24,46 @@ async function scenario(name, expected, body) {
     results.record({ scenario: name, expected, observed: `${error.name}: ${error.message}`, status: 'FAIL', durationMs: Date.now() - started, sessionId: browser.sessionId });
     throw error;
   }
+}
+
+async function ensureLoggedOut() {
+  await browser.reloadSession();
+  await login.assertLanding();
+  return 'fresh no-reset=false session proved the user logged out on launch';
+}
+
+async function openAccountLoginForLoggedOutUser() {
+  const guestHome = await reachGuestHomeFromLaunch();
+  await home.openAccount();
+  const opened = await account.openGuestLogin(accountFixture);
+  return `${guestHome}; ${opened}`;
+}
+
+async function reachHomeAfterLogin() {
+  await home.firstVisible([
+    '~Account', '~Profile',
+    'android=new UiSelector().descriptionContains("user account")',
+    'android=new UiSelector().text("Select Your Location")',
+    'android=new UiSelector().textMatches("(?i)(don.t allow|deny)")',
+    'android=new UiSelector().resourceIdMatches(".*permission_deny.*")'
+  ], 15000);
+  if (await home.isLoaded()) return 'authenticated home loaded';
+  return location.selectGuestLocation('Budhwal Haryana', 'Budhwal');
+}
+
+async function reachGuestHomeFromLaunch() {
+  await login.assertLanding();
+  const skipped = await login.skip();
+  await home.firstVisible([
+    '~Account', '~Profile',
+    'android=new UiSelector().descriptionContains("user account")',
+    'android=new UiSelector().text("Select Your Location")',
+    'android=new UiSelector().textMatches("(?i)(don.t allow|deny)")',
+    'android=new UiSelector().resourceIdMatches(".*permission_deny.*")'
+  ], 15000);
+  if (await home.isLoaded()) return `${skipped}; saved location retained`;
+  const selected = await location.selectGuestLocation('Budhwal Haryana', 'Budhwal');
+  return `${skipped}; ${selected}`;
 }
 
 describe('Just production read-only login sanity', () => {
@@ -32,7 +80,6 @@ describe('Just production read-only login sanity', () => {
       } finally {
         await policy.returnToLogin();
       }
-      await login.assertLanding();
       return observed;
     });
   });
@@ -46,16 +93,34 @@ describe('Just production read-only login sanity', () => {
       } finally {
         await policy.returnToLogin();
       }
-      await login.assertLanding();
       return observed;
     });
   });
 
-  it('logs in using runtime-only phone and OTP and reaches an authenticated state', async () => {
-    await scenario('phone_otp_login', 'runtime credentials authenticate and leave the OTP screen without an error', async () => {
+  it('logs in from the launch screen, then logs out', async () => {
+    await scenario('launch_phone_otp_login', 'a logged-out user authenticates from launch and can log out through Account', async () => {
+      const precondition = await ensureLoggedOut();
       const observed = await login.login(process.env.JUST_TEST_PHONE, process.env.JUST_TEST_OTP);
       const transition = await login.assertAuthenticatedTransition();
-      return `${observed}; ${transition}; no login evidence captured`;
+      const homeState = await reachHomeAfterLogin();
+      await home.openAccount();
+      const logout = await account.logout();
+      try {
+        await account.assertGuestLogin(accountFixture);
+      } catch {
+        await login.assertLanding();
+      }
+      return `${precondition}; ${observed}; ${transition}; ${homeState}; ${logout}; no login evidence captured`;
+    });
+  });
+
+  it('logs in from the Accounts page as a guest', async () => {
+    await scenario('account_phone_otp_login', 'a logged-out guest authenticates from the Accounts page', async () => {
+      const precondition = await ensureLoggedOut();
+      const opened = await openAccountLoginForLoggedOutUser();
+      const observed = await login.submitCredentials(process.env.JUST_TEST_PHONE, process.env.JUST_TEST_OTP);
+      const transition = await login.assertAuthenticatedTransition();
+      return `${precondition}; ${opened}; ${observed}; ${transition}; no login evidence captured`;
     });
   });
 });

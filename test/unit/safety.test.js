@@ -7,6 +7,8 @@ test('permits explicitly allowlisted read-only navigation', () => {
   assert.equal(assertSafeAction('orders.existing_order_view', 'Existing order details'), true);
   assert.equal(assertSafeAction('login.terms', 'Terms of service'), true);
   assert.equal(assertSafeAction('login.privacy', 'Privacy policy'), true);
+  assert.equal(assertSafeAction('account.logout', 'Logout'), true);
+  assert.equal(assertSafeAction('account.logout_confirm', 'Confirm logout'), true);
 });
 
 test('rejects unknown actions before interaction', () => {

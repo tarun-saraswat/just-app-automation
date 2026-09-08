@@ -102,6 +102,10 @@ On approved non-sensitive screens, attach a screenshot to the failed Allure test
 
 ## Fast debugging workflow
 
+- Avoid fixed sleeps and blind swipe loops: poll the required UI condition at short intervals and stop immediately when it appears or the page stops moving.
+- For loaded WebView catalogues and PDP sections, query the exact DOM/accessibility element instead of repeatedly scrolling; use bounded scrolling only as a fallback.
+- Make tests independent: recover to a positively identified Home screen before and after every case so one navigation failure cannot cascade through the suite.
+
 1. Run `npm run verify` before starting Appium.
 2. Reproduce on one emulator before consuming cloud minutes.
 3. Give each attempt a fresh `RUN_ROOT`.

@@ -179,7 +179,20 @@ fi
 export APPIUM_HOME="$SCRIPT_DIR/.appium"
 mkdir -p "$APPIUM_HOME"
 installed_drivers="$(node_modules/.bin/appium driver list --installed 2>&1 || true)"
-if [[ "$installed_drivers" != *uiautomator2* ]]; then
+driver_registry="$APPIUM_HOME/node_modules/.cache/appium/extensions.yaml"
+expected_driver_path="$APPIUM_HOME/node_modules/appium-uiautomator2-driver"
+driver_registration_valid=false
+if [[ "$installed_drivers" == *uiautomator2* \
+  && -f "$expected_driver_path/package.json" \
+  && -f "$driver_registry" \
+  && "$(sed -n '/^[[:space:]]*installPath:/p' "$driver_registry")" == *"$expected_driver_path"* ]]; then
+  driver_registration_valid=true
+fi
+if [[ "$driver_registration_valid" != true ]]; then
+  if [[ "$installed_drivers" == *uiautomator2* ]]; then
+    echo "Repairing the UiAutomator2 driver registration in the local Appium home..."
+    node_modules/.bin/appium driver uninstall uiautomator2
+  fi
   echo "Installing the UiAutomator2 driver in the local Appium home..."
   node_modules/.bin/appium driver install uiautomator2
 fi

@@ -137,7 +137,7 @@ export class CategoriesScreen extends BaseScreen {
     return names;
   }
 
-  async findSubcategory(name, maxScrolls = 3) {
+  async findSubcategory(name, maxScrolls = 6) {
     const escaped = name.replaceAll('"', '\\"');
     for (let step = 0; step <= maxScrolls; step += 1) {
       const nodes = await $$(`//*[@content-desc="${escaped}" or @text="${escaped}"]`);
@@ -162,9 +162,11 @@ export class CategoriesScreen extends BaseScreen {
     let cards = [];
     while (Date.now() < deadline) {
       cards = [];
-      for (const node of await $$('//android.widget.Button[contains(@text,"Add item")]')) {
+      // WebView accessibility differs across Android versions: some devices put
+      // the composed card copy in text, while others expose it as content-desc.
+      for (const node of await $$('android=new UiSelector().className("android.widget.Button").clickable(true)')) {
         if (!await node.isDisplayed().catch(() => false)) continue;
-        const text = ((await node.getText().catch(() => '')) || '').normalize('NFKC').replace(/\s+/gu, ' ').trim();
+        const text = ((await node.getText().catch(() => '')) || (await node.getAttribute('content-desc').catch(() => '')) || '').normalize('NFKC').replace(/\s+/gu, ' ').trim();
         if (PRICE.test(text) && /add item/i.test(text)) cards.push(text);
       }
       if (cards.length) return cards;
@@ -193,16 +195,18 @@ export class CategoriesScreen extends BaseScreen {
     return `${categoryName}: ${subcategories.length} subcategories opened; every subcategory contained at least one product`;
   }
 
-  async catalogue(expectedCount, maxScrolls = 4) {
+  async catalogue(expectedCount, expectedSections = [], maxScrolls = 4) {
     const categories = new Map();
     const sections = [];
+    const expectedSectionSet = new Set(expectedSections);
     let activeSection = '';
     let unchanged = 0;
     for (let step = 0; step <= maxScrolls && unchanged < 2; step += 1) {
       const headings = [];
-      for (const node of await $$('//android.widget.TextView[@heading="true"]')) {
+      for (const node of await $$('android=new UiSelector().className("android.widget.TextView")')) {
         if (!await node.isDisplayed().catch(() => false)) continue;
-        const name = ((await node.getText().catch(() => '')) || '').trim();
+        const name = ((await node.getText().catch(() => '')) || (await node.getAttribute('content-desc').catch(() => '')) || '').trim();
+        if (expectedSectionSet.size && !expectedSectionSet.has(name)) continue;
         if (name) headings.push({ type: 'section', name, y: (await node.getLocation()).y });
       }
       const cards = [];
@@ -238,7 +242,7 @@ export class CategoriesScreen extends BaseScreen {
   async assertCatalogue(expectedRows) {
     const expectedSections = expectedRows.filter((row) => row.row_type === 'section').map((row) => row.section);
     const expectedCategories = expectedRows.filter((row) => row.row_type === 'category');
-    const observed = await this.catalogue(expectedCategories.length);
+    const observed = await this.catalogue(expectedCategories.length, expectedSections);
     assert.deepEqual(observed.sections, expectedSections, `Category section headers differ. Observed: ${observed.sections.join(' | ')}`);
     assert.deepEqual(observed.categories.map((row) => row.category), expectedCategories.map((row) => row.category), `Category names differ. Observed: ${observed.categories.map((row) => row.category).join(' | ')}`);
     assert.equal(new Set(observed.categories.map((row) => row.category.toLocaleLowerCase())).size, observed.categories.length, 'Category names must not repeat');

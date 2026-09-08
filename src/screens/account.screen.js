@@ -29,6 +29,36 @@ export class AccountScreen extends BaseScreen {
     return 'guest login option opened the phone login form';
   }
 
+  async logout() {
+    const target = await this.scrollToText('Logout', 8).catch(() => this.scrollToText('Log out', 8));
+    await safeClick(target, 'account.logout', 'Logout');
+
+    await this.textVisible('Logout Options', true);
+    await this.textVisible('CURRENT DEVICE', true);
+    const currentDeviceLogout = await this.firstVisible([
+      'android=new UiSelector().text("LOGOUT").instance(0)',
+      'android=new UiSelector().description("LOGOUT").instance(0)',
+      '//*[@text="CURRENT DEVICE"]/following::*[@text="LOGOUT"][1]',
+      '//*[@text="CURRENT DEVICE"]/following::*[@content-desc="LOGOUT"][1]'
+    ]);
+    await safeClick(currentDeviceLogout, 'account.logout_confirm', 'Current device logout');
+
+    const confirm = await this.firstVisible([
+      'android=new UiSelector().text("Yes")',
+      'android=new UiSelector().description("Yes")',
+      '//*[@text="Are you sure you want to logout?"]/following::*[@text="Yes"][1]'
+    ]);
+    await safeClick(confirm, 'account.logout_confirm', 'Confirm logout');
+
+    await this.firstVisible([
+      'android=new UiSelector().text("Log in with phone number")',
+      'android=new UiSelector().description("Log in with phone number")',
+      'android=new UiSelector().textMatches("(?i)login to continue")',
+      'android=new UiSelector().textMatches("(?i)login/signup")'
+    ], 15000);
+    return 'authenticated session logged out through Account';
+  }
+
   async returnToHome(fixtures) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await this.back();

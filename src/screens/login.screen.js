@@ -3,7 +3,7 @@ import { safeClick, safeSetValue } from '../safety/guard.js';
 
 export class LoginScreen extends BaseScreen {
   async assertLanding() {
-    await this.dismissCompatibilityNotice(1200);
+    await this.dismissCompatibilityNotice(300);
     await this.firstVisible(['~Just App Icon']);
     await this.textVisible('Account', true);
     await this.textVisible('Login to track your savings, orders & addresses', true);
@@ -22,15 +22,33 @@ export class LoginScreen extends BaseScreen {
     await this.firstVisible(['~Close']);
   }
 
-  async login(phone, otp) {
-    const homeMarkers = [
-      'android=new UiSelector().textContains("Search")',
-      'android=new UiSelector().descriptionContains("Search")'
-    ];
-    try { await this.firstVisible(homeMarkers, 5000); return 'existing authenticated session'; } catch { /* clean cloud session */ }
+  async skip() {
+    const target = await this.firstVisible([
+      'android=new UiSelector().text("Skip")',
+      'android=new UiSelector().description("Skip")'
+    ]);
+    await safeClick(target, 'login.skip', 'Skip');
+    return 'launch login skipped for guest access';
+  }
 
+  async returnToLanding(maxBacks = 3) {
+    for (let step = 0; step <= maxBacks; step += 1) {
+      try {
+        await this.assertLanding();
+        return `logged-out launch landing restored after ${step} Back action(s)`;
+      } catch { /* Phone and OTP are stacked forms over the landing screen. */ }
+      if (step < maxBacks) await this.back();
+    }
+    throw new Error(`Could not restore logged-out launch landing after ${maxBacks} bounded Back actions`);
+  }
+
+  async login(phone, otp) {
     await this.assertLanding();
     await this.openPhoneForm();
+    return this.submitCredentials(phone, otp);
+  }
+
+  async submitCredentials(phone, otp) {
     const phoneInput = await this.firstVisible([
       'android=new UiSelector().resourceIdMatches(".*(phone|mobile).*input.*")',
       'android=new UiSelector().className("android.widget.EditText")'
@@ -64,21 +82,28 @@ export class LoginScreen extends BaseScreen {
       'android=new UiSelector().descriptionMatches("(?i)(verify|continue|login)")'
     ];
     try {
-      const verify = await this.firstVisible(verifyCandidates, 3000);
+      const verify = await this.firstVisible(verifyCandidates, 1000);
       await safeClick(verify, 'login.verify', 'Verify');
     } catch { /* OTP controls can auto-submit */ }
     return 'login submitted without capturing sensitive evidence';
   }
 
-  async assertAuthenticatedTransition() {
-    const source = await this.source();
-    if (/Enter OTP|Didn't get OTP|invalid|incorrect|expired/i.test(source)) {
-      throw new Error('Authentication did not advance beyond OTP');
+  async assertAuthenticatedTransition(timeoutMs = 10000) {
+    const deadline = Date.now() + timeoutMs;
+    let source = '';
+    let sawOtpError = false;
+    while (Date.now() < deadline) {
+      source = await this.source();
+      // A system permission dialog can sit above the stale OTP accessibility tree.
+      if (/permission|allow|notification|location|while using/i.test(source)) {
+        return 'OTP accepted and app reached a post-login permission prompt';
+      }
+      if (/invalid|incorrect|expired/i.test(source)) sawOtpError = true;
+      if (/Search|Categories|Shop by|Home/i.test(source)) return 'OTP accepted and app reached home';
+      await browser.pause(200);
     }
-    if (/permission|allow|notification|location|while using/i.test(source)) {
-      return 'OTP accepted and app reached a post-login permission prompt';
-    }
-    if (/Search|Categories|Shop by|Home/i.test(source)) return 'OTP accepted and app reached home';
+    if (sawOtpError) throw new Error('Authentication rejected the submitted OTP after waiting 10 seconds for a successful transition');
+    if (/Enter OTP|Didn't get OTP/i.test(source)) throw new Error('Authentication did not advance beyond OTP');
     throw new Error('OTP was submitted but no authenticated transition marker was observed');
   }
 }

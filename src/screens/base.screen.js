@@ -40,14 +40,13 @@ export class BaseScreen {
       ['android=new UiSelector().resourceId("android:id/button1").textMatches("(?i)don.?t show again")', "Don't show again"],
       ['android=new UiSelector().resourceId("android:id/button2").text("OK")', 'Android compatibility notice OK']
     ];
-    for (const [selector, descriptor] of targets) {
-      try {
-        const button = await this.firstVisible([selector], timeoutMs);
-        await safeClick(button, 'system.compatibility_ok', descriptor);
-        return true;
-      } catch { /* Try the next control, then give up silently. */ }
-    }
-    return false;
+    try {
+      const button = await this.firstVisible(targets.map(([selector]) => selector), timeoutMs);
+      const text = await button.getText().catch(() => '');
+      const descriptor = /don.?t show again/i.test(text) ? "Don't show again" : 'Android compatibility notice OK';
+      await safeClick(button, 'system.compatibility_ok', descriptor);
+      return true;
+    } catch { return false; }
   }
 
   // Bounded scroll search: stops as soon as the text appears, when the page
