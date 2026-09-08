@@ -4,6 +4,7 @@ import { PolicyScreen } from '../../src/screens/policy.screen.js';
 import { AccountScreen } from '../../src/screens/account.screen.js';
 import { HomeScreen } from '../../src/screens/home.screen.js';
 import { LocationScreen } from '../../src/screens/location.screen.js';
+import { CartScreen } from '../../src/screens/cart.screen.js';
 import { readCsv } from '../../src/utils/csv.js';
 
 const results = new Results();
@@ -12,6 +13,7 @@ const policy = new PolicyScreen();
 const account = new AccountScreen();
 const home = new HomeScreen();
 const location = new LocationScreen();
+const cart = new CartScreen();
 const accountFixture = readCsv('fixtures/account.csv');
 
 async function scenario(name, expected, body) {
@@ -40,6 +42,7 @@ async function openAccountLoginForLoggedOutUser() {
 }
 
 async function reachHomeAfterLogin() {
+  await cart.clearUnserviceablePopupIfPresent(2000);
   await home.firstVisible([
     '~Account', '~Profile',
     'android=new UiSelector().descriptionContains("user account")',
@@ -49,6 +52,13 @@ async function reachHomeAfterLogin() {
   ], 15000);
   if (await home.isLoaded()) return 'authenticated home loaded';
   return location.selectGuestLocation('Budhwal Haryana', 'Budhwal');
+}
+
+async function verifyAuthenticatedProfile(phone) {
+  const homeState = await reachHomeAfterLogin();
+  await home.openAccount();
+  const phoneMatch = await account.assertPhoneNumber(phone);
+  return `${homeState}; ${phoneMatch}`;
 }
 
 async function reachGuestHomeFromLaunch() {
@@ -102,15 +112,14 @@ describe('Just production read-only login sanity', () => {
       const precondition = await ensureLoggedOut();
       const observed = await login.login(process.env.JUST_TEST_PHONE, process.env.JUST_TEST_OTP);
       const transition = await login.assertAuthenticatedTransition();
-      const homeState = await reachHomeAfterLogin();
-      await home.openAccount();
+      const verifiedProfile = await verifyAuthenticatedProfile(process.env.JUST_TEST_PHONE);
       const logout = await account.logout();
       try {
         await account.assertGuestLogin(accountFixture);
       } catch {
         await login.assertLanding();
       }
-      return `${precondition}; ${observed}; ${transition}; ${homeState}; ${logout}; no login evidence captured`;
+      return `${precondition}; ${observed}; ${transition}; ${verifiedProfile}; ${logout}; no login evidence captured`;
     });
   });
 
@@ -120,7 +129,8 @@ describe('Just production read-only login sanity', () => {
       const opened = await openAccountLoginForLoggedOutUser();
       const observed = await login.submitCredentials(process.env.JUST_TEST_PHONE, process.env.JUST_TEST_OTP);
       const transition = await login.assertAuthenticatedTransition();
-      return `${precondition}; ${opened}; ${observed}; ${transition}; no login evidence captured`;
+      const verifiedProfile = await verifyAuthenticatedProfile(process.env.JUST_TEST_PHONE);
+      return `${precondition}; ${opened}; ${observed}; ${transition}; ${verifiedProfile}; no login evidence captured`;
     });
   });
 });

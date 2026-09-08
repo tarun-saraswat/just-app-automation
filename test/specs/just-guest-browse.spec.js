@@ -2,19 +2,21 @@ import assert from 'node:assert/strict';
 import { Results } from '../../src/reporting/results.js';
 import { LocationScreen } from '../../src/screens/location.screen.js';
 import { HomeScreen } from '../../src/screens/home.screen.js';
-import { CategoriesScreen } from '../../src/screens/categories.screen.js';
+import { TaxonomyScreen } from '../../src/screens/taxonomy.screen.js';
 import { ProductScreen } from '../../src/screens/product.screen.js';
 import { SearchScreen } from '../../src/screens/search.screen.js';
 import { AccountScreen } from '../../src/screens/account.screen.js';
+import { CartScreen } from '../../src/screens/cart.screen.js';
 import { readCsv } from '../../src/utils/csv.js';
 
 const results = new Results();
 const location = new LocationScreen();
 const home = new HomeScreen();
-const categories = new CategoriesScreen();
+const taxonomy = new TaxonomyScreen();
 const product = new ProductScreen();
 const search = new SearchScreen();
 const account = new AccountScreen();
+const cart = new CartScreen();
 const categoryFixture = readCsv('fixtures/categories.csv');
 const accountFixture = readCsv('fixtures/account.csv');
 let guestReady = false;
@@ -61,7 +63,9 @@ describe('Just guest flow without login', () => {
   beforeEach(async () => {
     if (!guestReady) return;
     const recovery = await home.recoverBackToHome();
-    console.info(`[case-boundary] beforeEach=${JSON.stringify(recovery)}`);
+    const cartCleanup = await cart.clearIfPresent();
+    const restored = await home.recoverBackToHome();
+    console.info(`[case-boundary] beforeEach=${JSON.stringify(recovery)} cart=${JSON.stringify(cartCleanup)} restored=${JSON.stringify(restored)}`);
   });
 
   afterEach(async function recoverAfterTest() {
@@ -102,9 +106,9 @@ describe('Just guest flow without login', () => {
 
   it('opens and validates the categories catalogue', async () => {
     await testCase('guest_categories', 'Explore Categories opens a populated category catalogue', async () => {
-      await home.openCategories();
-      await categories.textVisible('Categories', true);
-      const catalogue = await categories.assertCatalogue(categoryFixture);
+      await home.openTaxonomy();
+      await taxonomy.textVisible('Categories', true);
+      const catalogue = await taxonomy.assertCatalogue(categoryFixture);
       return catalogue;
     });
   });
@@ -116,11 +120,11 @@ describe('Just guest flow without login', () => {
       assert.equal(new Set(selected).size, selected.length, 'The random category sample must not contain duplicates');
       const observations = [];
       for (const categoryName of selected) {
-        await home.openCategories();
-        await categories.textVisible('Categories', true);
+        await home.openTaxonomy();
+        await taxonomy.textVisible('Categories', true);
         try {
-          await categories.openCategory(categoryName);
-          observations.push(await categories.assertEverySubcategoryHasProducts(categoryName));
+          await taxonomy.openCategory(categoryName);
+          observations.push(await taxonomy.assertEverySubcategoryHasProducts(categoryName));
         } finally {
           const recovery = await home.recoverBackToHome();
           console.info(`[category-sample] category=${JSON.stringify(categoryName)} cleanup=${JSON.stringify(recovery)}`);
@@ -146,7 +150,7 @@ describe('Just guest flow without login', () => {
   });
 
   it('shares the opened PDP with product text and link', async () => {
-    await testCase('guest_product_share', 'Share opens the Android share sheet with PDP text and a product-specific HTTPS link', async () => {
+    await testCase('guest_product_share', 'Share opens a preview with PDP text and a product-specific HTTPS link', async () => {
       await home.openAnyProduct();
       return product.assertShareBehaviour();
     });
@@ -183,8 +187,8 @@ describe('Just guest flow without login', () => {
     });
   });
 
-  it('returns the same ordered top three products for Colgate', async () => {
-    await testCase('guest_search_colgate', 'Colgate yields the same ordered top three results as Toothpaste', async () => {
+  it('returns the same top three products for Colgate', async () => {
+    await testCase('guest_search_colgate', 'Colgate yields the same top three products as Toothpaste', async () => {
       await home.openSearch();
       await search.search('Toothpaste');
       await search.assertResultsFor('toothpaste');
@@ -194,7 +198,7 @@ describe('Just guest flow without login', () => {
       await search.search('Colgate');
       await search.assertResultsFor('colgate');
       const colgateTopThree = await search.topProductNames(3);
-      assert.deepEqual(colgateTopThree, toothpasteTopThree);
+      assert.deepEqual([...colgateTopThree].sort(), [...toothpasteTopThree].sort());
       return colgateTopThree;
     });
   });

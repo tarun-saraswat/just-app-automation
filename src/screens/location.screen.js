@@ -1,5 +1,8 @@
 import { BaseScreen } from './base.screen.js';
+import { CartScreen } from './cart.screen.js';
 import { safeClick, safeSetValue } from '../safety/guard.js';
+
+const cart = new CartScreen();
 
 export class LocationScreen extends BaseScreen {
   async guestHomeMarker(timeoutMs = 1200) {
@@ -89,6 +92,10 @@ export class LocationScreen extends BaseScreen {
       await safeClick(denyNotification, 'system.notification_deny', 'Deny notification permission');
     } catch { /* In-app Not now usually avoids the system prompt. */ }
     await this.dismissCompatibilityNotice();
+    const clearedUnserviceableCart = await cart.clearUnserviceablePopupIfPresent(5000);
+    if (clearedUnserviceableCart) {
+      console.info('[location] cleared the existing unserviceable cart before continuing to Home');
+    }
     await this.firstVisible([
       'android=new UiSelector().textContains("Search for")',
       'android=new UiSelector().textContains("Explore Categories")',

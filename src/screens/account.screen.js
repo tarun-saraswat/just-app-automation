@@ -1,5 +1,5 @@
 import { BaseScreen } from './base.screen.js';
-import { safeClick } from '../safety/guard.js';
+import { safeClick, safeWebViewLogoutConfirm } from '../safety/guard.js';
 
 export class AccountScreen extends BaseScreen {
   value(fixtures, field) {
@@ -29,6 +29,26 @@ export class AccountScreen extends BaseScreen {
     return 'guest login option opened the phone login form';
   }
 
+  async assertPhoneNumber(expectedPhone, timeoutMs = 10000) {
+    const expectedDigits = String(expectedPhone || '').replace(/\D/gu, '').slice(-10);
+    if (expectedDigits.length !== 10) throw new Error('Login phone must contain exactly 10 significant digits');
+    // Profile is a native screen even though the catalogue WebView remains
+    // attached in the background. Compare only individual accessibility labels
+    // in memory; never include either phone value in errors or result output.
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const source = await this.source();
+      const labels = [...source.matchAll(/(?:text|content-desc)="([^"]+)"/gu)].map((match) => match[1]);
+      const matched = labels.some((label) => {
+        const digits = label.replace(/\D/gu, '');
+        return digits.length >= 10 && digits.length <= 12 && digits.slice(-10) === expectedDigits;
+      });
+      if (matched) return 'Profile phone number matches the submitted login number';
+      await browser.pause(200);
+    }
+    throw new Error('Authenticated Profile phone number does not match the submitted login number');
+  }
+
   async logout() {
     const target = await this.scrollToText('Logout', 8).catch(() => this.scrollToText('Log out', 8));
     await safeClick(target, 'account.logout', 'Logout');
@@ -47,8 +67,12 @@ export class AccountScreen extends BaseScreen {
       'android=new UiSelector().text("Yes")',
       'android=new UiSelector().description("Yes")',
       '//*[@text="Are you sure you want to logout?"]/following::*[@text="Yes"][1]'
-    ]);
-    await safeClick(confirm, 'account.logout_confirm', 'Confirm logout');
+    ], 2000).catch(() => null);
+    if (confirm) {
+      await safeClick(confirm, 'account.logout_confirm', 'Confirm logout');
+    } else {
+      await safeWebViewLogoutConfirm();
+    }
 
     await this.firstVisible([
       'android=new UiSelector().text("Log in with phone number")',

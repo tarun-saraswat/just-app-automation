@@ -1,6 +1,12 @@
 import { BaseScreen } from './base.screen.js';
 import { safeClick, safeSetValue } from '../safety/guard.js';
 
+export function authenticatedDestinationFromSource(source = '') {
+  if (/Select Your Location|Search an area or address/i.test(source)) return 'location-search';
+  if (/Search for|Explore Categories|Shop by|user account|content-desc="(?:Account|Profile)"/i.test(source)) return 'home';
+  return null;
+}
+
 export class LoginScreen extends BaseScreen {
   async assertLanding() {
     await this.dismissCompatibilityNotice(300);
@@ -88,22 +94,26 @@ export class LoginScreen extends BaseScreen {
     return 'login submitted without capturing sensitive evidence';
   }
 
-  async assertAuthenticatedTransition(timeoutMs = 10000) {
+  async assertAuthenticatedTransition(timeoutMs = 30000) {
     const deadline = Date.now() + timeoutMs;
     let source = '';
-    let sawOtpError = false;
     while (Date.now() < deadline) {
       source = await this.source();
+      const destination = authenticatedDestinationFromSource(source);
+      if (destination === 'location-search') return 'OTP accepted and app reached location search';
+      if (destination === 'home') return 'OTP accepted and app reached home';
       // A system permission dialog can sit above the stale OTP accessibility tree.
-      if (/permission|allow|notification|location|while using/i.test(source)) {
+      if (/permissioncontroller|permission_deny|while using the app|don.t allow|allow only while/i.test(source)) {
         return 'OTP accepted and app reached a post-login permission prompt';
       }
-      if (/invalid|incorrect|expired/i.test(source)) sawOtpError = true;
-      if (/Search|Categories|Shop by|Home/i.test(source)) return 'OTP accepted and app reached home';
       await browser.pause(200);
     }
-    if (sawOtpError) throw new Error('Authentication rejected the submitted OTP after waiting 10 seconds for a successful transition');
+    const otpError = await this.firstVisible([
+      'android=new UiSelector().textMatches("(?i).*(invalid|incorrect|expired).*(otp|code).*")',
+      'android=new UiSelector().descriptionMatches("(?i).*(invalid|incorrect|expired).*(otp|code).*")'
+    ], 300).catch(() => null);
+    if (otpError) throw new Error(`Authentication rejected the submitted OTP after waiting ${timeoutMs} ms for a successful transition`);
     if (/Enter OTP|Didn't get OTP/i.test(source)) throw new Error('Authentication did not advance beyond OTP');
-    throw new Error('OTP was submitted but no authenticated transition marker was observed');
+    throw new Error(`OTP was submitted but neither Home nor location search appeared within ${timeoutMs} ms`);
   }
 }

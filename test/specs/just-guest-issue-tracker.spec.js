@@ -6,6 +6,7 @@ import { ProductScreen } from '../../src/screens/product.screen.js';
 import { SearchScreen } from '../../src/screens/search.screen.js';
 import { CartScreen } from '../../src/screens/cart.screen.js';
 import { PromiseScreen } from '../../src/screens/promise.screen.js';
+import { TaxonomyScreen } from '../../src/screens/taxonomy.screen.js';
 
 const results = new Results();
 const location = new LocationScreen();
@@ -14,6 +15,7 @@ const product = new ProductScreen();
 const search = new SearchScreen();
 const cart = new CartScreen();
 const promise = new PromiseScreen();
+const taxonomy = new TaxonomyScreen();
 let guestReady = false;
 
 async function issueCase(id, expected, body) {
@@ -54,7 +56,11 @@ describe('Just guest issue-regression suite', () => {
   });
 
   beforeEach(async () => {
-    if (guestReady) await home.recoverBackToHome();
+    if (!guestReady) return;
+    await home.recoverBackToHome();
+    const cartCleanup = await cart.clearIfPresent();
+    await home.recoverBackToHome();
+    console.info(`[guest-issues] case-boundary cart=${JSON.stringify(cartCleanup)}`);
   });
 
   afterEach(async function recoverAfterTest() {
@@ -92,9 +98,18 @@ describe('Just guest issue-regression suite', () => {
     });
   });
 
-  it.skip('JUS-WEB-004: validates taxonomy-page search', () => {
-    // Taxonomy search is not exposed by the current CategoriesScreen contract;
-    // add it when the product provides a taxonomy search control/oracle.
+  it('JUS-WEB-004: validates taxonomy-page search', async () => {
+    await issueCase('JUS-WEB-004', 'searching from a category for its first product returns that same product', async () => {
+      await home.openTaxonomy();
+      await taxonomy.textVisible('Categories', true);
+      const categoryName = await taxonomy.openFirstCategory();
+      const productName = await taxonomy.firstProductEnglishName();
+      await taxonomy.openSearch();
+      await search.search(productName);
+      const { matched } = await search.waitForResultNamed(productName);
+      assert.equal(matched.toLocaleLowerCase(), productName.toLocaleLowerCase(), 'Taxonomy search result differs from the category product');
+      return `category=${categoryName}; searched=${productName}; matched=${matched}`;
+    });
   });
 
   it.skip('JUS-WEB-005: validates the required PDP top spacing', () => {
